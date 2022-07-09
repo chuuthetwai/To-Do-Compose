@@ -23,6 +23,7 @@ import com.carina.to_docompose.components.PriorityItem
 import com.carina.to_docompose.data.models.Priority
 import com.carina.to_docompose.ui.theme.*
 import com.carina.to_docompose.ui.viewmodel.SharedViewModel
+import com.carina.to_docompose.util.Action
 import com.carina.to_docompose.util.SearchAppBarState
 import com.carina.to_docompose.util.TrailingIconState
 
@@ -39,7 +40,9 @@ fun ListAppBar(
                     sharedViewModel.searchAppBarState.value = SearchAppBarState.OPENED
                 },
                 onSortClicked = {},
-                onDeleteClicked = {}
+                onDeleteAllClicked = {
+                    sharedViewModel.action.value = Action.DELETE_ALL
+                }
             )
         }
         else -> {
@@ -52,7 +55,9 @@ fun ListAppBar(
                     sharedViewModel.searchAppBarState.value = SearchAppBarState.CLOSED
                     sharedViewModel.searchTextState.value = ""
                 },
-                onSearchClicked = {}
+                onSearchClicked = {
+                    sharedViewModel.searchDatabase(searchQuery = it)
+                }
             )
         }
     }
@@ -63,7 +68,7 @@ fun ListAppBar(
 fun DefaultListAppBar(
     onSearchClicked: () -> Unit,
     onSortClicked: (Priority) -> Unit,
-    onDeleteClicked: () -> Unit,
+    onDeleteAllClicked: () -> Unit,
 ) {
     TopAppBar(
         title = {
@@ -72,7 +77,7 @@ fun DefaultListAppBar(
                 color = MaterialTheme.colors.topAppBarContentColor)
         },
         actions = {
-            ListAppbarActions(onSearchClicked, onSortClicked, onDeleteClicked)
+            ListAppbarActions(onSearchClicked, onSortClicked, onDeleteAllClicked)
         },
         backgroundColor = MaterialTheme.colors.topAppBarBackgroundColor
     )
@@ -277,7 +282,7 @@ fun DefaultListApBarPreview() {
     DefaultListAppBar(
         onSearchClicked = {},
         onSortClicked = {},
-        onDeleteClicked = {}
+        onDeleteAllClicked = {}
     )
 }
 

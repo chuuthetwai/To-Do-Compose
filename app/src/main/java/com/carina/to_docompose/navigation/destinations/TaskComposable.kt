@@ -31,10 +31,13 @@ fun NavGraphBuilder.taskComposable(
             sharedViewModel.getSelectedTask(taskId)
         }
         val selectedTask by sharedViewModel.selectedTask.collectAsState()
-        LaunchedEffect(key1 = selectedTask){
-            sharedViewModel.updatedTaskFields(selectedTask = selectedTask)
+        LaunchedEffect(key1 = selectedTask) {
+            if (selectedTask != null || taskId == -1) {
+                sharedViewModel.updatedTaskFields(selectedTask = selectedTask)
+            }
+
         }
-        
+
         TaskScreen(
             sharedViewModel = sharedViewModel,
             selectedTask = selectedTask,
