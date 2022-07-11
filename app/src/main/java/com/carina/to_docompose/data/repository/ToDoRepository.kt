@@ -1,4 +1,4 @@
-package com.carina.to_docompose.repository
+package com.carina.to_docompose.data.repository
 
 import com.carina.to_docompose.data.ToDoDao
 import com.carina.to_docompose.data.models.ToDoTask
@@ -12,7 +12,7 @@ class ToDoRepository @Inject constructor(
 ) {
     val getAllTasks: Flow<List<ToDoTask>> = toDoDao.getAllTasks()
     val sortByLowPriority: Flow<List<ToDoTask>> = toDoDao.sortByLowPriority()
-    val sortHighPriority: Flow<List<ToDoTask>> = toDoDao.sortByHighPriority()
+    val sortByHighPriority: Flow<List<ToDoTask>> = toDoDao.sortByHighPriority()
 
     fun getSelectedTask(taskId: Int): Flow<ToDoTask> {
         return toDoDao.getSelectedTask(taskId)

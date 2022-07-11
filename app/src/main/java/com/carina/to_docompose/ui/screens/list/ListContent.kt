@@ -1,24 +1,37 @@
 package com.carina.to_docompose.ui.screens.list
 
+import android.annotation.SuppressLint
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import com.carina.to_docompose.R
 import com.carina.to_docompose.data.models.Priority
 import com.carina.to_docompose.data.models.ToDoTask
 import com.carina.to_docompose.ui.theme.*
+import com.carina.to_docompose.util.Action
 import com.carina.to_docompose.util.RequestState
 import com.carina.to_docompose.util.SearchAppBarState
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @ExperimentalMaterialApi
 @Composable
@@ -26,23 +39,48 @@ fun ListContent(
     allTasks: RequestState<List<ToDoTask>>,
     searchedTasks: RequestState<List<ToDoTask>>,
     searchAppBarState: SearchAppBarState,
-    navigateToTaskScreen: (taskId: Int) -> Unit
+    lowPriorityTasks: List<ToDoTask>,
+    highPriorityTasks: List<ToDoTask>,
+    sortState: RequestState<Priority>,
+    navigateToTaskScreen: (taskId: Int) -> Unit,
+    onSwipeToDelete: (Action, ToDoTask) -> Unit
 ) {
-    if (searchAppBarState == SearchAppBarState.TRIGGERED) {
-        if (searchedTasks is RequestState.Success) {
-            HandleListContent(
-                tasks = searchedTasks.data,
-                navigateToTaskScreen = navigateToTaskScreen
-            )
+    if (sortState is RequestState.Success) {
+        when {
+            searchAppBarState == SearchAppBarState.TRIGGERED -> {
+                if (searchedTasks is RequestState.Success) {
+                    HandleListContent(
+                        tasks = searchedTasks.data,
+                        onSwipeToDelete = onSwipeToDelete,
+                        navigateToTaskScreen = navigateToTaskScreen
+                    )
+                }
+            }
+            sortState.data == Priority.NONE -> {
+                if (allTasks is RequestState.Success) {
+                    HandleListContent(
+                        tasks = allTasks.data,
+                        onSwipeToDelete = onSwipeToDelete,
+                        navigateToTaskScreen = navigateToTaskScreen
+                    )
+                }
+            }
+            sortState.data == Priority.LOW -> {
+                HandleListContent(
+                    tasks = lowPriorityTasks,
+                    onSwipeToDelete = onSwipeToDelete,
+                    navigateToTaskScreen = navigateToTaskScreen
+                )
+            }
+            sortState.data == Priority.HIGH -> {
+                HandleListContent(
+                    tasks = highPriorityTasks,
+                    onSwipeToDelete = onSwipeToDelete,
+                    navigateToTaskScreen = navigateToTaskScreen
+                )
+            }
         }
 
-    } else {
-        if (allTasks is RequestState.Success) {
-            HandleListContent(
-                tasks = allTasks.data,
-                navigateToTaskScreen = navigateToTaskScreen
-            )
-        }
     }
 
 
@@ -52,6 +90,7 @@ fun ListContent(
 @Composable
 fun HandleListContent(
     tasks: List<ToDoTask>,
+    onSwipeToDelete: (Action, ToDoTask) -> Unit,
     navigateToTaskScreen: (taskId: Int) -> Unit
 ) {
     if (tasks.isEmpty()) {
@@ -59,15 +98,18 @@ fun HandleListContent(
     } else {
         DisplayTasks(
             tasks = tasks,
+            onSwipeToDelete = onSwipeToDelete,
             navigateToTaskScreen = navigateToTaskScreen
         )
     }
 }
 
+@SuppressLint("CoroutineCreationDuringComposition")
 @ExperimentalMaterialApi
 @Composable
 fun DisplayTasks(
     tasks: List<ToDoTask>,
+    onSwipeToDelete: (Action, ToDoTask) -> Unit,
     navigateToTaskScreen: (taskId: Int) -> Unit
 ) {
     LazyColumn {
@@ -76,11 +118,88 @@ fun DisplayTasks(
             key = { task ->
                 task.id
             }) { task ->
-            TaskItem(
-                toDoTask = task,
-                navigateToTaskScreen = navigateToTaskScreen
+            val dismissState = rememberDismissState()
+            val dismissDirection = dismissState.dismissDirection
+            val isDismissed = dismissState.isDismissed(
+                DismissDirection.EndToStart
             )
+            if (isDismissed && dismissDirection == DismissDirection.EndToStart) {
+                val scope = rememberCoroutineScope()
+                scope.launch {
+                    delay(300)
+                    onSwipeToDelete(Action.DELETE, task)
+                }
+
+            }
+
+            val degrees by animateFloatAsState(
+                if (dismissState.targetValue == DismissValue.Default)
+                    0f
+                else
+                    -45f
+            )
+
+            var itemAppeared by remember { mutableStateOf(false) }
+            LaunchedEffect(key1 = true){
+                itemAppeared = true
+            }
+
+
+            AnimatedVisibility(
+                visible = itemAppeared && !isDismissed,
+                enter = expandHorizontally(
+                    animationSpec = tween(
+                        durationMillis = 300
+                    )
+                ),
+                exit = shrinkVertically(
+                    animationSpec = tween(
+                        durationMillis = 300
+                    )
+                )
+            ) {
+                SwipeToDismiss(
+                    state = dismissState,
+                    directions = setOf(
+                        DismissDirection.EndToStart
+                    ),
+                    dismissThresholds = {
+                        FractionalThreshold(0.2f)
+                    },
+                    background = {
+                        RedBackground(degrees = degrees)
+                    },
+                    dismissContent = {
+                        TaskItem(
+                            toDoTask = task,
+                            navigateToTaskScreen = navigateToTaskScreen
+                        )
+                    }
+                )
+
+            }
+
         }
+    }
+}
+
+@Composable
+fun RedBackground(degrees: Float) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(HighPriorityColor)
+            .padding(horizontal = LARGEST_PADDING),
+        contentAlignment = Alignment.CenterEnd
+    ) {
+        Icon(
+            modifier = Modifier.rotate(degrees),
+            imageVector = Icons.Filled.Delete,
+            contentDescription = stringResource(
+                id = R.string.delete_icon
+            ),
+            tint = Color.White
+        )
     }
 }
 

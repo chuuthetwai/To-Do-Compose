@@ -10,6 +10,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.*
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
@@ -19,13 +21,13 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import com.carina.to_docompose.R
+import com.carina.to_docompose.components.DisplayAlertDialog
 import com.carina.to_docompose.components.PriorityItem
 import com.carina.to_docompose.data.models.Priority
 import com.carina.to_docompose.ui.theme.*
 import com.carina.to_docompose.ui.viewmodel.SharedViewModel
 import com.carina.to_docompose.util.Action
 import com.carina.to_docompose.util.SearchAppBarState
-import com.carina.to_docompose.util.TrailingIconState
 
 @Composable
 fun ListAppBar(
@@ -37,11 +39,13 @@ fun ListAppBar(
         SearchAppBarState.CLOSED -> {
             DefaultListAppBar(
                 onSearchClicked = {
-                    sharedViewModel.searchAppBarState.value = SearchAppBarState.OPENED
+                    sharedViewModel.updateSearchAppBarState(SearchAppBarState.OPENED)
                 },
-                onSortClicked = {},
+                onSortClicked = {
+                    sharedViewModel.persistSortingState(it)
+                },
                 onDeleteAllClicked = {
-                    sharedViewModel.action.value = Action.DELETE_ALL
+                    sharedViewModel.updateAction(Action.DELETE_ALL)
                 }
             )
         }
@@ -49,11 +53,11 @@ fun ListAppBar(
             SearchAppBar(
                 text = searchTextState,
                 onTextChanged = { newText ->
-                    sharedViewModel.searchTextState.value = newText
+                    sharedViewModel.updateSearchTextState(newText)
                 },
                 onCloseClicked = {
-                    sharedViewModel.searchAppBarState.value = SearchAppBarState.CLOSED
-                    sharedViewModel.searchTextState.value = ""
+                    sharedViewModel.updateSearchAppBarState(SearchAppBarState.CLOSED)
+                    sharedViewModel.updateSearchTextState("")
                 },
                 onSearchClicked = {
                     sharedViewModel.searchDatabase(searchQuery = it)
@@ -74,7 +78,8 @@ fun DefaultListAppBar(
         title = {
             Text(
                 text = stringResource(id = R.string.list_screen_title),
-                color = MaterialTheme.colors.topAppBarContentColor)
+                color = MaterialTheme.colors.topAppBarContentColor
+            )
         },
         actions = {
             ListAppbarActions(onSearchClicked, onSortClicked, onDeleteAllClicked)
@@ -87,11 +92,26 @@ fun DefaultListAppBar(
 fun ListAppbarActions(
     onSearchClicked: () -> Unit,
     onSortClicked: (Priority) -> Unit,
-    onDeleteClicked: () -> Unit,
+    onDeleteAllConfirmed: () -> Unit,
 ) {
+    var openDialog by remember { mutableStateOf(false) }
+
+    DisplayAlertDialog(
+        title = stringResource(id = R.string.delete_all_task),
+        message = stringResource(id = R.string.delete_all_confirmation),
+        openDialog = openDialog,
+        closedDialog = { openDialog = false },
+        onYesClicked = {
+            onDeleteAllConfirmed()
+        }
+    )
     SearchAction(onSearchClicked)
     SortAction(onSortClicked = onSortClicked)
-    DeleteAllAction(onDeleteClicked = onDeleteClicked)
+    DeleteAllAction(
+        onDeleteAllConfirmed = {
+            openDialog = true
+        }
+    )
 }
 
 @Composable
@@ -124,29 +144,15 @@ fun SortAction(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            DropdownMenuItem(
-                onClick = {
-                    expanded = false
-                    onSortClicked(Priority.LOW)
+            Priority.values().slice(setOf(0, 2, 3)).forEach { priority ->
+                DropdownMenuItem(
+                    onClick = {
+                        expanded = false
+                        onSortClicked(priority)
+                    }
+                ) {
+                    PriorityItem(priority = priority)
                 }
-            ) {
-                PriorityItem(priority = Priority.LOW)
-            }
-            DropdownMenuItem(
-                onClick = {
-                    expanded = false
-                    onSortClicked(Priority.HIGH)
-                }
-            ) {
-                PriorityItem(priority = Priority.HIGH)
-            }
-            DropdownMenuItem(
-                onClick = {
-                    expanded = false
-                    onSortClicked(Priority.NONE)
-                }
-            ) {
-                PriorityItem(priority = Priority.NONE)
             }
         }
     }
@@ -154,7 +160,7 @@ fun SortAction(
 
 @Composable
 fun DeleteAllAction(
-    onDeleteClicked: () -> Unit
+    onDeleteAllConfirmed: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     IconButton(onClick = { expanded = true }) {
@@ -172,7 +178,7 @@ fun DeleteAllAction(
             DropdownMenuItem(
                 onClick = {
                     expanded = false
-                    onDeleteClicked()
+                    onDeleteAllConfirmed()
                 }
             ) {
                 Text(
@@ -192,9 +198,6 @@ fun SearchAppBar(
     onCloseClicked: () -> Unit,
     onSearchClicked: (String) -> Unit
 ) {
-    var trailingIconState by remember {
-        mutableStateOf(TrailingIconState.READY_TO_DELETE)
-    }
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -233,21 +236,10 @@ fun SearchAppBar(
             },
             trailingIcon = {
                 IconButton(onClick = {
-                    when (trailingIconState) {
-                        TrailingIconState.READY_TO_DELETE -> {
-                            onTextChanged("")
-                            trailingIconState = TrailingIconState.READY_TO_CLOSE
-                        }
-                        TrailingIconState.READY_TO_CLOSE -> {
-                            if(text.isNotEmpty()){
-                                onTextChanged ("")
-                            }
-                            else{
-                                onCloseClicked()
-                                trailingIconState = TrailingIconState.READY_TO_DELETE
-                            }
-
-                        }
+                    if (text.isNotEmpty()) {
+                        onTextChanged("")
+                    } else {
+                        onCloseClicked()
                     }
                 }) {
                     Icon(
