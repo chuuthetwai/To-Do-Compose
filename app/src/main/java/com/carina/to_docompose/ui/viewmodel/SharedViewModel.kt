@@ -25,7 +25,7 @@ class SharedViewModel @Inject constructor(
     private val repository: ToDoRepository,
     private val dataStoreRepository: DataStoreRepository
 ) : ViewModel() {
-
+    //state values
     var action by mutableStateOf(Action.NO_ACTION)
         private set
 
