@@ -5,7 +5,7 @@
 # This workflow will build a package using Gradle and then publish it to GitHub packages when a release is created
 # For more information see: https://github.com/actions/setup-java/blob/main/docs/advanced-usage.md#Publishing-using-gradle
 
-name: Gradle Package
+name: Pull Request
 
 on:
   pull_request:
@@ -32,13 +32,11 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582 # v4.0.0
 
-    - name: Build with Gradle
-      run: ./gradlew build
-
-    # The USERNAME and TOKEN need to correspond to the credentials environment variables used in
-    # the publishing section of your build.gradle
-    - name: Publish to GitHub Packages
-      run: ./gradlew publish
+    - uses: burrunan/gradle-cache-action@v2
       env:
-        USERNAME: ${{ github.actor }}
+        GRADLE_OPTS: '-Xmx8g -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx12g -Xms4g -XX:InitialHeapSize=1g -XX:MaxHeapSize=8g -XX:MaxMetaspaceSize=2g -XX:NewSize=1g -XX:MaxNewSize=2g -XX:ReservedCodeCacheSize=256m -XX:+UseCompressedOops -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8 -XX:+UseParallelGC"'
         TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      name: Test
+      timeout-minutes: 120
+      with:
+        arguments: build --no-daemon
