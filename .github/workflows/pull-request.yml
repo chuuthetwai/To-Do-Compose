@@ -14,7 +14,7 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       contents: read
       packages: write
@@ -29,11 +29,9 @@ jobs:
         server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
         settings-path: ${{ github.workspace }} # location for the settings.xml file
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582 # v4.0.0
-
     - uses: burrunan/gradle-cache-action@v2
       env:
+        gradle-version: 7.3.3
         GRADLE_OPTS: '-Xmx8g -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx12g -Xms4g -XX:InitialHeapSize=1g -XX:MaxHeapSize=8g -XX:MaxMetaspaceSize=2g -XX:NewSize=1g -XX:MaxNewSize=2g -XX:ReservedCodeCacheSize=256m -XX:+UseCompressedOops -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8 -XX:+UseParallelGC"'
         TOKEN: ${{ secrets.GITHUB_TOKEN }}
       name: Test
