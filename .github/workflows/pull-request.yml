@@ -29,12 +29,23 @@ jobs:
         server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
         settings-path: ${{ github.workspace }} # location for the settings.xml file
 
-    - uses: burrunan/gradle-cache-action@v2
-      env:
-        gradle-version: 7.3.3
-        GRADLE_OPTS: '-Xmx8g -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx12g -Xms4g -XX:InitialHeapSize=1g -XX:MaxHeapSize=8g -XX:MaxMetaspaceSize=2g -XX:NewSize=1g -XX:MaxNewSize=2g -XX:ReservedCodeCacheSize=256m -XX:+UseCompressedOops -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8 -XX:+UseParallelGC"'
-        TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      name: Test
-      timeout-minutes: 60
+    - uses: actions/cache@v4
       with:
-        arguments: build --no-daemon
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    - uses: actions/cache@v4
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+
+    - name: Run Tests with Gradle
+      run: ./gradlew test --no-daemon
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
